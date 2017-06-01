@@ -41,8 +41,7 @@ export class QueryTreeComponent implements OnInit {
 
     var scope = this;
     // Add a click listener for when we click on the nodes
-    this.network.on("click", function (params) {            
-      console.log('click event, getNodeAt returns: ' + this.getNodeAt(params.pointer.DOM));
+    this.network.on("click", function (params) {                  
       
       if(params && params.nodes && params.nodes.length > 0){
           // Get the id of the node we clicked on
@@ -60,13 +59,14 @@ export class QueryTreeComponent implements OnInit {
     let max:number = 0;
 
     // Go through all of the data and find the greatest number. We then want to increment it by one
-    for(let node of scope.nodes){
-       if(parseInt(node.id) > max){
-         max = node.id
+    for(let index in scope.nodes._data){
+       if(parseInt(scope.nodes._data[index].id) > max){
+         max = scope.nodes._data[index].id
        }
     }
 
-    return max ++;
+    max = max + 1;
+    return max;
   }
 
   /**
