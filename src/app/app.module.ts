@@ -2,7 +2,7 @@ import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpModule } from '@angular/http';
-import { InputTextModule, DialogModule, ButtonModule } from 'primeng/primeng';
+import { InputTextModule, DialogModule, ButtonModule, DropdownModule } from 'primeng/primeng';
 import { AppComponent } from './app.component';
 import { QueryTreeComponent } from './query-tree/query-tree.component';
 import { AddFilterComponent } from './query-tree/add-filter/add-filter.component';
@@ -19,7 +19,8 @@ import { AddFilterComponent } from './query-tree/add-filter/add-filter.component
     HttpModule,
     InputTextModule,
     DialogModule,
-    ButtonModule
+    ButtonModule,
+    DropdownModule
   ],
   providers: [],
   bootstrap: [AppComponent]

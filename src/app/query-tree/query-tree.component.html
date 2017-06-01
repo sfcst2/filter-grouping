@@ -1,6 +1,15 @@
-<div class="fa" #myNetwork id="myNetwork" style="height: 800px; width: 800px;">
-</div>
+<div>
+    <div>
+        <p-dropdown [options]="graphNode" [(ngModel)]="selectedGraphNodeLabel"></p-dropdown>
+        <button pButton type="button" icon="fa-plus" label="Add Filter"></button>        
+        <button pButton type="button" icon="fa-plus" label="Add Group"></button>
+    </div>
+
+    <div class="fa" #myNetwork id="myNetwork" style="height: 800px; width: 800px;">
+    </div>
+</div>    
 
 <p-dialog header="Add Filter" [(visible)]="showAddFilterDialog" modal="true">
     <add-filter (addFilter)="filterAdded($event)" [addFilterModel]="addFilter"></add-filter>
 </p-dialog>
+
