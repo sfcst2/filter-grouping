@@ -1,0 +1,7 @@
+<div class="fa" #myNetwork id="myNetwork" style="height: 400px; width: 400px;">
+
+</div>
+
+<p-dialog header="Add Filter" [(visible)]="showAddFilterDialog" modal="true">
+    <add-filter (addFilter)="filterAdded($event)" [addFilterModel]="addFilter"></add-filter>
+</p-dialog>
