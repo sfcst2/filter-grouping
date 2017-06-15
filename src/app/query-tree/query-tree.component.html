@@ -1,15 +1,23 @@
 <div>
     <div>
-        <p-dropdown [options]="graphNode" [(ngModel)]="selectedGraphNodeLabel"></p-dropdown>
-        <button pButton type="button" icon="fa-plus" label="Add Filter"></button>        
-        <button pButton type="button" icon="fa-plus" label="Add Group"></button>
+        <p-dropdown (onChange)="graphNodesComboChanged($event)" #graphNodes [options]="graphNode" [(ngModel)]="selectedGraphNodeLabel"></p-dropdown>
+        <button pButton type="button" (click)="addFilterMenuOptionClicked()" icon="fa-plus" label="Add Filter"></button>        
+        <button pButton type="button" (click)="addFilterGroupNodeClicked()" icon="fa-plus" label="Add Group"></button>
     </div>
 
-    <div class="fa" #myNetwork id="myNetwork" style="height: 800px; width: 800px;">
+    <div class="fa" #myNetwork id="myNetwork" style="height: 500px; width: 500px;">
     </div>
 </div>    
 
-<p-dialog header="Add Filter" [(visible)]="showAddFilterDialog" modal="true">
-    <add-filter (addFilter)="filterAdded($event)" [addFilterModel]="addFilter"></add-filter>
+<p-dialog  header="Add Filter" [(visible)]="showAddFilterDialog" modal="true">    
+    <label name="filter" for="filterInput">Filter:</label>
+    <input type="text" #addFilterInputField name="filterInput" pInputText />
+    <button pButton type="button" icon="fa-plus" label="Add" (click)="filterAdded($event)"></button>
+</p-dialog>
+
+
+<p-dialog [style]="{'height': '300px'}" header="Add Filter Group" [(visible)]="showAddFilterGroupDialog" modal="true">
+    <p-dropdown  #addFilterGroupCombo  [style]="{'width':'150px'}" [options]="filterGroupOptions" [(ngModel)]="selectedFilterGroupOption"></p-dropdown>
+    <button pButton type="button" icon="fa-plus" label="Add" (click)="filterGroupAdded($event)"></button>    
 </p-dialog>
 

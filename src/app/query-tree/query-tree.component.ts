@@ -1,10 +1,7 @@
 import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
-import * as Vis from 'vis';
-import { Dialog, Button, Dropdown, SelectItem } from 'primeng/primeng';
-import { AddFilterComponent } from './add-filter/add-filter.component';
-import { AddFilterModel } from '../models/add-filter.model';
-
-declare var vis;
+import { DataSet, Node, Edge, Network, Data, Options } from 'vis';
+import { Dropdown, SelectItem } from 'primeng/primeng';
+import { FilterNodeModel } from '../models/filter-node.model';
 
 @Component({
     selector: 'query-tree',
@@ -16,22 +13,54 @@ export class QueryTreeComponent implements OnInit {
     @ViewChild('myNetwork')
     myNetwork: ElementRef;
 
+    @ViewChild('graphNodes')
+    graphNodesDropDown: Dropdown;
+
+    @ViewChild('addFilterInputField')
+    addFilterInputField: ElementRef;
+
+    @ViewChild('addFilterGroupCombo')
+    addFilterGroupCombo: Dropdown;
+
+    private filterGroupOptions: SelectItem[] = [
+        {
+            label: 'AND',
+            value: 'AND'
+        },
+        {
+            label: 'OR',
+            value: 'OR'
+        },
+        {
+            label: 'NOT',
+            value: 'NOT'
+        }
+    ];
+
     private showAddFilterDialog; boolean;
 
-    private addFilter: AddFilterModel;
+    private showAddFilterGroupDialog: boolean;
 
     // This is the nodes object that backs the vis js graph
-    private nodes: vis.DataSet;
+    private nodes: DataSet<Node>;
 
     // This is the edges object that backs the vis js graph
-    private edges: vis.DataSet;
+    private edges: DataSet<Edge>;
 
     // Reference to the network graph
-    private network: any;
+    private network: Network;
 
     private graphNode: SelectItem[] = [];
 
     private selectedGraphNodeLabel: string;
+
+    private currentMaxNodeId: number = 0;
+
+    readonly ROOT_NODE_LABEL: string = 'And (Root)';
+
+    readonly ROOT_NODE_VALUE: number = 0;
+
+    readonly NODE_GROUP: string = 'nodeGroup';
 
     constructor() { }
 
@@ -40,114 +69,166 @@ export class QueryTreeComponent implements OnInit {
         this.populateGraphData();
 
         // create a network
-        var container = this.myNetwork.nativeElement;
-        this.network = new vis.Network(container, { nodes: this.nodes, edges: this.edges }, this.getGraphOptions());
+        let container = this.myNetwork.nativeElement;
+        let data: Data = {
+            edges: this.edges,
+            nodes: this.nodes
+        };
+        this.network = new Network(container, data, this.getGraphOptions());
 
-        var scope = this;
+        let scope = this;
         // Add a click listener for when we click on the nodes
-        this.network.on("click", function(params) {
+        this.network.on('click', function (params) {
 
             if (params && params.nodes && params.nodes.length > 0) {
                 // Get the id of the node we clicked on
                 let id = params.nodes[0];
-
-                if (id === 1) {
-                    scope.addFilterNode(scope.getNextId(scope));
-                }
+                scope.deleteFilter(id, scope);
             }
         });
     }
 
-    getNextId(scope: any): number {
+    graphNodesComboChanged(event: any): void {
+        this.network.setSelection({
+            nodes: [event.value],
+            edges: []
+        });
+    }
 
-        let max: number = 0;
+    deleteFilter(id: number, scope: any) {
 
-        // Go through all of the data and find the greatest number. We then want to increment it by one
-        for (let index in scope.nodes._data) {
-            if (parseInt(scope.nodes._data[index].id) > max) {
-                max = scope.nodes._data[index].id
-            }
+        // Don't delete the root
+        if (id === this.ROOT_NODE_VALUE) {
+            return;
         }
 
-        max = max + 1;
-        return max;
+        // Get all of the nodes that are connected
+        let connectedNodes: any[] = this.network.getConnectedNodes(id);
+
+        this.network.setSelection({
+            nodes: [id],
+            edges: []
+        });
+        this.network.deleteSelected();
+
+        // We want to recursively call this if we have any additonal nodes connected
+        for (let connectedId of connectedNodes) {
+            this.deleteFilter(connectedId, scope);
+        }
+
+        // We need to populate the drop down again
+        this.populateGraphNodesCombo();
     }
 
     /**
-     * Function that we will get into when we add a filter via the add-filter component
+     * Function that we will get into when we press the add button in the filterAdded
+     * dialog
      */
-    filterAdded(addFilterNode: AddFilterModel): void {
+    filterAdded(): void {
+        this.currentMaxNodeId ++;
+
+        // Create a new AddFilterModel
+        let addFilterNode: FilterNodeModel = new FilterNodeModel();
+        addFilterNode.id = this.currentMaxNodeId;
+        addFilterNode.value = this.addFilterInputField.nativeElement.value;
+
+        // Close the dialog and pull the value from the combobox where we added
+        // the filter to
+        this.showAddFilterDialog = false;
+        addFilterNode.parentId = this.getNodeIdFromDropDown();
+
         this.nodes.add({
             id: addFilterNode.id,
-            label: addFilterNode.value
+            label: addFilterNode.value,
+            group: this.NODE_GROUP
         });
-        this.showAddFilterDialog = false;
 
-        // We need to repopulate the graph nodes
+        this.edges.add({
+            from: addFilterNode.parentId,
+            to: addFilterNode.id
+        });
+
+        // We need to repopulate the graph nodes since we added a new filter
         this.populateGraphNodesCombo();
     }
+    
+
+    /**
+     * Function that we will get into when we press the add button in the filter group
+     * dialog     
+     */
+    filterGroupAdded(): void {
+
+        this.currentMaxNodeId ++;
+
+        // Create a new AddFilterModel 
+        let addFilterNode: FilterNodeModel = new FilterNodeModel();
+        addFilterNode.id = this.currentMaxNodeId;
+        addFilterNode.value = this.addFilterGroupCombo.selectedOption.value
+
+        // Close the dialog and pull the value from the combobox where we added
+        // the filter to
+        this.showAddFilterGroupDialog = false;
+        addFilterNode.parentId = this.getNodeIdFromDropDown();
+
+        this.nodes.add({
+            id: addFilterNode.id,
+            label: addFilterNode.value,
+            group: this.NODE_GROUP
+        });
+
+        this.edges.add({
+            from: addFilterNode.parentId,
+            to: addFilterNode.id
+        });
+
+        // We need to repopulate the graph nodes since we added a new filter
+        this.populateGraphNodesCombo();
+    }
+
 
     /**
      * Function that is called when we click on the add filter node in the graph
      */
-    addFilterNode(nodeId: number): void {
-        // Create a new AddFilterModel and show the add filter dialog 
-        this.addFilter = new AddFilterModel();
-        this.addFilter.id = nodeId;
+    addFilterMenuOptionClicked(): void {
         this.showAddFilterDialog = true;
+    }
+
+    /**
+     * Function that is called when we click on the add filter grouping node in the graph
+     */
+    addFilterGroupNodeClicked(): void {
+        this.showAddFilterGroupDialog = true;
+    }
+
+    /**
+     * return the value of the selected field in the drop down
+     */
+    getNodeIdFromDropDown(): number {
+        return parseInt(this.graphNodesDropDown.selectedOption.value);
     }
 
     populateGraphData(): void {
         // create an array with nodes
-        let nodesArray = [{
+        let nodesArray: Node[] = [{
             id: 0,
-            label: 'And (Root)'
+            label: this.ROOT_NODE_LABEL,
+            shape: 'icon',
+            group: 'root'
         }
-        // , {
-        //     id: 1,
-        //     label: 'Add Filter',
-        //     shape: 'icon',
-        //     icon: {
-        //         face: 'FontAwesome',
-        //         code: '\uf067',
-        //         size: 25,
-        //         color: 'green'
-        //     }
-        // },
-        // {
-        //     id: 2,
-        //     label: 'Add Grouping',
-        //     shape: 'icon',
-        //     icon: {
-        //         face: 'FontAwesome',
-        //         code: '\uf067',
-        //         size: 25,
-        //         color: 'green'
-        //     }
-        // },
-        // {
-        //     id: 3,
-        //     label: 'Add Grouping',
-        //     shape: 'icon',
-        //     group: 'remove'
-        // }
         ];
 
-        this.nodes = new vis.DataSet(nodesArray);
+        this.nodes = new DataSet<Node>(nodesArray);
 
         // Populate the graph node ids
         this.populateGraphNodesCombo();
 
-        // create an array with edges
-        let edgesArray = [{
-            from: 0,
-            to: 1
-        }, {
-            from: 0,
-            to: 2
-        }];
+        // set the selectedGraphNodeLabel to the root node
+        this.selectedGraphNodeLabel = this.ROOT_NODE_LABEL;
 
-        this.edges = new vis.DataSet(edgesArray);
+        // create an array with edges
+        let edgesArray = [];
+        this.edges = new DataSet(edgesArray);
     }
 
     /**
@@ -156,17 +237,19 @@ export class QueryTreeComponent implements OnInit {
     populateGraphNodesCombo(): void {
         this.graphNode = [];
         if (this.nodes) {
-            for (let index in this.nodes._data) {
-                this.graphNode.push( { 
-                  label: this.nodes._data[index].label, 
-                  value: this.nodes._data[index].id
-                });                
-            }
+            this.nodes.forEach((item: Node, id:string) =>{
+
+                this.graphNode.push({
+                    label: item.label,
+                    value: item.id
+                });
+
+            });            
         }
     }
 
 
-    getGraphOptions(): any {
+    getGraphOptions(): Options {
         /**
          * With our graph options we use the font awsome icons and create
          * a group for removing. This will allow to place an icon next to the
@@ -174,14 +257,28 @@ export class QueryTreeComponent implements OnInit {
          */
         return {
             groups: {
-                remove: {
+                nodeGroup: {
                     shape: 'icon',
                     icon: {
                         face: 'FontAwesome',
                         code: '\uf00d',
                         size: 25,
                         color: 'red'
+                    },
+                },
+                root: {
+                    shape: 'icon',
+                    icon: {
+                        face: 'FontAwesome',
+                        code: '\uf005',
+                        size: 25,
+                        color: 'yellow'
                     }
+                }
+            },
+            layout: {
+                hierarchical: {
+                    direction: 'LR'
                 }
             }
         };
